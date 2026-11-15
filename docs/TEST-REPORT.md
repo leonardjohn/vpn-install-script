@@ -1,22 +1,14 @@
-# Pre4 local test report
+# Pre5 test report
 
-Executed in the build environment on 2026-11-15.
+Build-time checks executed in the artifact-generation environment:
 
-Passed:
-- `python3 -m py_compile scripts/*.py`
-- `bash -n scripts/*.sh`
-- existing domain-mode config validation
-- existing IPv4-mode config validation
-- synthetic REALITY key-output parser test for `PrivateKey` + `Password (PublicKey)` + `Hash32`
-- renderer smoke test in both domain and IPv4 modes
-- generated Xray and sing-box JSON parses successfully
-- expected four Xray and four sing-box inbounds and expected RackNerd ports are present
-- generated REALITY target is `127.0.0.1:9443`
+- `bash -n` on all shell scripts: PASS
+- `python3 -m py_compile` on all Python scripts: PASS
+- ZIP integrity: PASS
+- Lockfile contains exact version tags and asset names: PASS
+- Installer safety guards (root, Debian 12, amd64, no overwrite): reviewed
+- Release download and SHA-256 verification: NOT executed here (build environment has no outbound DNS/network access)
+- Actual Xray/sing-box binary execution: NOT executed here
+- Native `xray run -test` / `sing-box check`: NOT executed here
 
-Not tested / not claimed:
-- native `xray run -test` (Xray binary is not installed in build environment)
-- native `sing-box check` (sing-box binary is not installed in build environment)
-- actual TLS certificate files, ACME, Nginx `nginx -t`, systemd service startup
-- remote port reachability, provider firewall rules, or client imports/connectivity
-
-All smoke-test credentials were synthetic and discarded. No user credentials or VPS were accessed or changed.
+The next step is to run the binary-only installer on the clean RackNerd server, then share its output. That will establish the exact binary versions and allow the next milestone to perform native configuration validation. No server has been modified by building this archive.

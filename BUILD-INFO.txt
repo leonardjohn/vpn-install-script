@@ -1,0 +1,6 @@
+Project: vpn-deploy
+Version: 0.1.0-pre5
+Target: Debian GNU/Linux 12 (bookworm), amd64
+Xray: v26.10.31 (official XTLS/Xray-core release)
+sing-box: v1.14.4 (official SagerNet/sing-box release)
+Scope: checksum-verified binary-only installer; no services/config activation
