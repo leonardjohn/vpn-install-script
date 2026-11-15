@@ -1,64 +1,27 @@
-# VPN Deploy Toolkit — Debian 12 (pre-release)
+# VPN Deployment Toolkit — Debian 12 pre-release 2
 
-Version: 0.1.0-pre1  
-Target: Debian GNU/Linux 12 (Bookworm), amd64  
-Reference architecture: the user's existing VMISS deployment.
+This package is a configuration-model and validation increment for the reusable deployment toolkit. It is **not yet a production installer**. It does not install Xray, sing-box, Nginx, ACME, firewall rules, or publish DNS records.
 
-> **Pre-release warning:** This is an initial deployment candidate, not a production-certified installer. It has shell syntax and static consistency checks, but has not yet been run on the RackNerd VPS or validated against live Xray/sing-box binaries and client applications. Do not run it on VMISS. Test only on the clean RackNerd server after reviewing `config/racknerd.env` and the firewall checklist.
+## What changed in pre2
 
-## Included services
+- Separates the server's connection address from TLS/REALITY SNI.
+- Supports `ADDRESS_MODE=domain` and `ADDRESS_MODE=ipv4`.
+- Requires an explicitly supplied `REALITY_SNI` in both modes. In IPv4 mode, the SNI is never guessed from the IP.
+- Keeps the VMISS REALITY fallback pattern: `REALITY_TARGET=127.0.0.1:9443`.
+- Adds explicit TLS certificate modes. Domain mode uses ACME; IPv4-only mode uses a self-signed certificate with the server IPv4 in its SAN. Clients must explicitly trust that certificate or opt into insecure verification; this is not equivalent to a publicly trusted certificate.
 
-- Xray: VLESS REALITY (TCP 9444), VLESS XHTTP+TLS (TCP 9445), Trojan+TLS (TCP 8446), VMess WebSocket+TLS (TCP 8447)
-- sing-box: AnyTLS (TCP 2053), Hysteria2 (UDP 8444), TUIC (UDP 8445), Shadowsocks (TCP+UDP 8388)
-- Nginx: HTTP ACME challenge (TCP 80), HTTPS subscription (TCP 9446), loopback fallback (TCP 9443)
-- Subscription outputs: Mihomo YAML, Shadowrocket URI/Base64, v2rayNG Base64
-
-## Layout
-
-```text
-vpn-deploy-debian12/
-├── install.sh
-├── config/racknerd.env.example
-├── lib/common.sh
-├── scripts/generate.py
-├── scripts/build_configs.py
-├── scripts/validate.sh
-├── scripts/show-subscriptions.sh
-├── docs/FIREWALL.md
-└── docs/OPERATIONS.md
-```
-
-## Before installation
-
-1. Create the DNS records listed in `config/racknerd.env.example`; all must be DNS-only and point to this VPS.
-2. Allow inbound TCP 22, 80, 9444, 9445, 2053, 8446, 8447, 9446 and UDP 8444, 8445, 8388 (plus TCP 8388).
-3. Ensure no other service is using these ports.
-4. Copy the example configuration to `config/racknerd.env`, set a valid `ACME_EMAIL`, and review the REALITY camouflage target. The default Microsoft target is only an example; the installer checks TCP reachability but does not guarantee it is an ideal REALITY target.
-5. Review all values. Never share the generated secrets.
-
-## Install
-
-Run as root on a clean Debian 12 amd64 VPS:
+## Validate the example
 
 ```bash
-cp config/racknerd.env.example config/racknerd.env
-nano config/racknerd.env
-chmod 600 config/racknerd.env
-sudo bash install.sh --config config/racknerd.env
+cp config/server.env.example config/server.env
+# Edit config/server.env locally; do not share private keys or tokens.
+bash scripts/validate-server-config.sh config/server.env
 ```
 
-The installer creates the three subscription URLs in `/etc/vpn-deploy/secrets/subscription-urls.txt` (root-only). Read them after installation with `sudo bash scripts/show-subscriptions.sh`. The installer is intentionally fail-closed. It refuses non-Debian-12 systems, non-amd64 architecture, occupied ports, existing Xray/sing-box/Nginx services, or an existing toolkit state directory. It creates a timestamped backup before writing service configuration. It does not configure a provider firewall or Cloudflare API.
+The validator only checks configuration consistency. It does not install or start services.
 
-## Versions
+## Important distinction
 
-Defaults are pinned to Xray `26.10.31` and sing-box `1.14.4`, matching the known-good VMISS baseline recorded during toolkit planning. Update versions only after testing the release on a disposable VPS.
+`SERVER_ADDRESS` is the address clients dial. `REALITY_SNI` is the hostname sent in the REALITY handshake and must be compatible with the configured REALITY target. They are not interchangeable. An IP address does not become a valid SNI hostname.
 
-## Important limitations of pre-release 0.1.0
-
-- The installer uses the official Xray install script and the official sing-box GitHub release archive. The Xray installer is the upstream installer; this pre-release does not yet pin a separately verified SHA-256 for the sing-box archive.
-- Certificate issuance uses ACME HTTP-01 via Nginx webroot. TCP 80 must be reachable from the public internet and remain available for renewal.
-- Cloudflare DNS records are expected to be created manually; orange-cloud proxying must be disabled.
-- Provider firewalls are not changed automatically.
-- There is no automated multi-provider API adapter yet.
-- Re-running installation is deliberately blocked. If an installation fails after packages have been installed, do not rerun it; preserve the output and inspect the partial state before recovery. Backup/restore and upgrade workflows will be added only after the first deployment has been tested.
-- The generated client profiles are candidate profiles and require import/connection testing in the target clients before the release can be considered stable. The REALITY target (`REALITY_DEST` and `REALITY_SNI`) is a starting example, not a measured recommendation; confirm it is reachable and suitable from this VPS before installation.
+For domainless deployments, choose an SNI hostname that is genuinely supported by the REALITY target and that you are authorized to use. Do not enter an arbitrary hostname merely because it resolves. The later installer must validate the target/SNI relationship and document the exact client settings.
