@@ -1,47 +1,35 @@
-# VPN toolkit Pre5 corrective update overlay
+# Corrective update v2 — apply to the existing repository
 
-This is a manually applied overlay for the public `vpn-install-script` repository. It is designed for local review and commit by the repository owner; it does not connect to GitHub or push changes.
-
-## Included files
-
-- `scripts/install-pinned-binaries.sh`: replacement for the Pre5 binary installer. Fixes the multi-line `jq | head -n1` bug by extracting exactly one compact JSON object. Adds explicit HTTP/JSON/asset validation, clearer failures, archive SHA-256 verification, architecture checks, pre-publication executable checks, and refuses to overwrite existing binaries.
-- `scripts/server-preflight-report.sh`: new read-only environment report covering OS/architecture, dependencies, existing Xray/sing-box binaries and versions, systemd units, disk, listening ports, and effective SSH authentication settings. It makes no changes.
-- `tests/test-installer-metadata.sh`: offline regression test for the JSON extraction defect and missing-asset handling.
+This is an **overlay**, not a complete repository replacement. It contains:
+- a corrected `scripts/install-pinned-binaries.sh`
+- a stronger `tests/test-installer-metadata.sh`
 
 ## Apply on your Mac
 
-1. Make a backup or create a branch in your local repository.
-2. Extract this ZIP.
-3. Copy the included `scripts/install-pinned-binaries.sh` over the existing file.
-4. Copy `scripts/server-preflight-report.sh` into your repository's `scripts/` directory.
-5. Copy `tests/test-installer-metadata.sh` into `tests/`.
-6. Review the diff before committing.
+1. Unzip this package.
+2. Copy the two files into the matching paths in your local `vpn-install-script` checkout, replacing those files.
+3. Review the changes:
+   ```bash
+   git diff -- scripts/install-pinned-binaries.sh tests/test-installer-metadata.sh
+   ```
+4. Run:
+   ```bash
+   bash -n scripts/install-pinned-binaries.sh
+   bash -n tests/test-installer-metadata.sh
+   bash tests/test-installer-metadata.sh
+   git diff --check
+   ```
+5. Commit and push the changes yourself.
 
-Example from the repository root (adjust the extracted folder path):
+Do not run the installer on RackNerd until the new commit has been reviewed and verified there.
 
-```bash
-cp /path/to/extracted/scripts/install-pinned-binaries.sh scripts/install-pinned-binaries.sh
-cp /path/to/extracted/scripts/server-preflight-report.sh scripts/server-preflight-report.sh
-cp /path/to/extracted/tests/test-installer-metadata.sh tests/test-installer-metadata.sh
-chmod 755 scripts/install-pinned-binaries.sh scripts/server-preflight-report.sh tests/test-installer-metadata.sh
-bash -n scripts/install-pinned-binaries.sh scripts/server-preflight-report.sh tests/test-installer-metadata.sh
-bash tests/test-installer-metadata.sh
-```
+## What changed
 
-Then inspect:
+- Uses compact `jq -c` output and removes the broken `head -n1` truncation.
+- Requires exactly one asset with the expected name.
+- Validates GitHub API JSON, download URL, non-empty archive, and SHA-256 digest.
+- Checks both extracted binaries before placement.
+- Checks destination paths and adds rollback if placement of the second binary fails.
+- Regression test checks the production installer source as well as the JSON extraction behavior.
 
-```bash
-git diff --check
-git status --short
-git diff -- scripts/install-pinned-binaries.sh
-```
-
-Commit and push only after reviewing. Suggested commit message: `fix binary metadata parsing and add server preflight report`.
-
-## Important scope notes
-
-- This is an overlay, not a full replacement of the repository and not a complete rework of `README.md`, `docs/BINARY-INSTALL.md`, or `scripts/check-binaries.sh`. Those existing files are intentionally not overwritten because their full current contents were not part of the RackNerd transcript used to prepare this package.
-- The preflight report is informational. It does not modify SSH, install dependencies, open ports, or remove existing binaries.
-- The installer remains Debian 12 amd64-specific as in Pre5.
-- The installer downloads release metadata live from GitHub and requires GitHub's API to provide a SHA-256 digest for each asset. It refuses to install if the digest is missing or malformed.
-- No installer was run by creating this package. Do not rerun the RackNerd installation until you have reviewed and pushed the corrected code, then download the new pinned commit and verify its hash.
+The installer still only installs the two binaries. It does not configure services, certificates, firewall rules, users, or listeners.
